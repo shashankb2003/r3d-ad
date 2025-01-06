@@ -1,0 +1,4 @@
+dataset: ShapeNetAD
+dataset_path: data/shapenet-ad/
+
+max_iters: 40000
