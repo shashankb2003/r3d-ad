@@ -22,7 +22,7 @@ def main(args):
     for cate in cates:
         cmd = f"python train_ae.py --category {cate} --log_root logs_{dataset}/{exp_name}_{time_fix}_{args.tag}/" + cfg_cmd
         os.system(cmd)
-        break
+        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

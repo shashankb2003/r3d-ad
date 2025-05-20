@@ -37,15 +37,15 @@ parser.add_argument('--num_aug', type=int, default=2048)
 parser.add_argument('--train_batch_size', type=int, default=128)
 parser.add_argument('--val_batch_size', type=int, default=128)
 parser.add_argument('--rotate', type=eval, default=False, choices=[True, False])
-parser.add_argument('--rel', type=eval, default=False, choices=[True, False])
+parser.add_argument('--rel', type=eval, default=True, choices=[True, False])
 
 # Optimizer and scheduler
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--weight_decay', type=float, default=0)
 parser.add_argument('--max_grad_norm', type=float, default=10)
 parser.add_argument('--end_lr', type=float, default=1e-4)
-parser.add_argument('--sched_start_epoch', type=int, default=150*THOUSAND)
-parser.add_argument('--sched_end_epoch', type=int, default=300*THOUSAND)
+parser.add_argument('--sched_start_epoch', type=int, default=15*THOUSAND)
+parser.add_argument('--sched_end_epoch', type=int, default=30*THOUSAND)
 
 # Training
 parser.add_argument('--seed', type=int, default=2020)
@@ -231,10 +231,12 @@ try:
     it = 1
     while it <= args.max_iters:
         train(it)
-        if it % args.val_freq == 0 or it == args.max_iters:
+        if it % args.val_freq == 0:
             with torch.no_grad():
                 score = validate_loss(it)
                 validate_inspect(it)
+        # save checkpoint only at the final iteration
+        if it == args.max_iters:
             opt_states = {
                 'optimizer': optimizer.state_dict(),
                 'scheduler': scheduler.state_dict(),
