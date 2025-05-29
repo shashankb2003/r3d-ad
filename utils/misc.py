@@ -40,6 +40,15 @@ class CheckpointManager(object):
                 'file': f,
                 'iteration': int(it),
             })
+    def delete_old_checkpoints(self):
+        """Delete all .pt files in the checkpoint directory."""
+        for f in os.listdir(self.save_dir):
+            if f.endswith('.pt'):
+                try:
+                    os.remove(os.path.join(self.save_dir, f))
+                except OSError:
+                    pass
+        self.ckpts = []  # Clear the checkpoint list
 
     def get_worst_ckpt_idx(self):
         idx = -1
@@ -68,7 +77,10 @@ class CheckpointManager(object):
                 latest_it = ckpt['iteration']
         return idx if idx >= 0 else None
 
-    def save(self, model, args, score, others=None, step=None):
+    def save(self, model, args, score, others=None, step=None,is_best=False):
+
+        if not is_best:
+            return False
 
         if step is None:
             fname = 'ckpt_%.6f_.pt' % float(score)
@@ -77,6 +89,7 @@ class CheckpointManager(object):
         else:
             fname = 'ckpt_%.6f_%d.pt' % (float(score), int(step))
         path = os.path.join(self.save_dir, fname)
+        self.delete_old_checkpoints()
 
         torch.save({
             'args': args,
@@ -84,10 +97,10 @@ class CheckpointManager(object):
             'others': others
         }, path)
 
-        self.ckpts.append({
+        self.ckpts={
             'score': score,
             'file': fname
-        })
+        }
 
         return True
 

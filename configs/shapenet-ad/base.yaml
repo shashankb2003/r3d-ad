@@ -1,4 +1,4 @@
 dataset: ShapeNetAD
 dataset_path: data/shapenet-ad/
-
+model_type: consistency
 max_iters: 40000

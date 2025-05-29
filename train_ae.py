@@ -18,8 +18,23 @@ from evaluation import ROC_AP
 parser = argparse.ArgumentParser()
 # Model arguments
 parser.add_argument('--model', type=str, default='AutoEncoder')
+parser.add_argument('--model_type', type=str, default='diffusion', choices=['diffusion', 'consistency'], 
+                    help='Type of model to use: diffusion or consistency')
+parser.add_argument('--ema_rate', type=float, default=0.999, 
+                    help='EMA decay rate for consistency model target network (used only if adaptive is disabled)')
+
+# Consistency model adaptive scheduling arguments
+parser.add_argument('--adaptive_scheduling', type=eval, default=True, 
+                    help='Enable adaptive scheduling for consistency models')
+parser.add_argument('--s0', type=float, default=2.0,
+                    help='Initial discretization steps for adaptive scheduling')
+parser.add_argument('--s1', type=float, default=4000.0,
+                    help='Target discretization steps at end (default: num_steps)')
+parser.add_argument('--mu0', type=float, default=0.95,
+                    help='EMA decay rate at beginning of model training')
+
 parser.add_argument('--latent_dim', type=int, default=256)
-parser.add_argument('--num_steps', type=int, default=200)
+parser.add_argument('--num_steps', type=int, default=4000)
 parser.add_argument('--beta_1', type=float, default=1e-4)
 parser.add_argument('--beta_T', type=float, default=0.05)
 parser.add_argument('--sched_mode', type=str, default='linear')
@@ -59,6 +74,11 @@ parser.add_argument('--num_val_batches', type=int, default=-1)
 parser.add_argument('--num_inspect_batches', type=int, default=1)
 parser.add_argument('--num_inspect_pointclouds', type=int, default=4)
 args = parser.parse_args()
+
+# Set default s1 to num_steps if not specified
+if args.s1 is None:
+    args.s1 = float(args.num_steps)
+
 seed_all(args.seed)
 
 # Logging
@@ -111,11 +131,35 @@ logger.info('Building model...')
 if args.resume is not None:
     logger.info('Resuming from checkpoint...')
     ckpt = torch.load(args.resume)
-    model = getattr(sys.modules[__name__], args.model)(ckpt['args']).to(args.device)
+    # Use the model type from checkpoint args if available, otherwise use current args
+    ckpt_model_type = getattr(ckpt['args'], 'model_type', 'diffusion')
+    if ckpt_model_type == 'consistency':
+        model = ConsistencyAutoEncoder(ckpt['args']).to(args.device)
+    else:
+        model = getattr(sys.modules[__name__], args.model)(ckpt['args']).to(args.device)
     model.load_state_dict(ckpt['state_dict'])
 else:
-    model = getattr(sys.modules[__name__], args.model)(args).to(args.device)
+    if args.model_type == 'consistency':
+        model = ConsistencyAutoEncoder(args).to(args.device)
+    else:
+        model = getattr(sys.modules[__name__], args.model)(args).to(args.device)
 logger.info(repr(model))
+
+# Log model-specific information
+if args.model_type == 'consistency':
+    if args.adaptive_scheduling:
+        logger.info('Using Consistency Model with OFFICIAL ADAPTIVE scheduling:')
+        logger.info(f'  s0 (initial steps): {args.s0}')
+        logger.info(f'  s1 (target steps): {args.s1}')
+        logger.info(f'  μ0 (initial EMA): {args.mu0}')
+        logger.info(f'  K (total iterations): {args.max_iters}')
+        logger.info('  Using formulas: N(k) = floor(sqrt(...)) + 1, μ(k) = exp(...)')
+    else:
+        logger.info(f'Using Consistency Model with FIXED scheduling:')
+        logger.info(f'  EMA rate: {args.ema_rate} (constant)')
+        logger.info(f'  Num steps: {args.num_steps} (constant)')
+else:
+    logger.info('Using Diffusion Model')
 
 
 # Optimizer and scheduler
@@ -157,6 +201,27 @@ def train(it):
     orig_grad_norm = clip_grad_norm_(model.parameters(), args.max_grad_norm)
     optimizer.step()
     scheduler.step()
+
+    # Update EMA target network for consistency models
+    if args.model_type == 'consistency':
+        # Step the training counter for adaptive scheduling
+        model.consistency.step_training()
+        
+        # Update target network
+        if args.adaptive_scheduling:
+            # Use adaptive EMA rate
+            model.consistency.update_target_network()
+            
+            # Log adaptive values every 1000 iterations
+            if it % 1000 == 0:
+                current_ema = model.consistency.get_adaptive_ema_rate()
+                current_steps = model.consistency.get_adaptive_num_steps()
+                logger.info(f'[Official Adaptive] Iter {it:04d} | μ(k): {current_ema:.4f} | N(k): {current_steps}')
+                writer.add_scalar('adaptive/mu_k', current_ema, it)
+                writer.add_scalar('adaptive/N_k', current_steps, it)
+        else:
+            # Use fixed EMA rate
+            model.consistency.update_target_network(ema_rate=args.ema_rate)
 
     logger.info('[Train] Iter %04d | Loss %.6f | Grad %.4f ' % (it, loss.item(), orig_grad_norm))
     writer.add_scalar('train/loss', loss, it)
@@ -229,19 +294,22 @@ def validate_inspect(it):
 logger.info('Start training...')
 try:
     it = 1
+    best_roc = float('-inf')  # Track best ROC score
     while it <= args.max_iters:
         train(it)
-        if it % args.val_freq == 0:
+        if it % args.val_freq == 0 or it == args.max_iters:
             with torch.no_grad():
                 score = validate_loss(it)
                 validate_inspect(it)
-        # save checkpoint only at the final iteration
-        if it == args.max_iters:
-            opt_states = {
-                'optimizer': optimizer.state_dict(),
-                'scheduler': scheduler.state_dict(),
-            }
-            ckpt_mgr.save(model, args, score, opt_states, it)
+            # Only save if we get a better ROC score
+            if score > best_roc:
+                best_roc = score
+                opt_states = {
+                    'optimizer': optimizer.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                }
+                ckpt_mgr.save(model, args, score, opt_states, it, is_best=True)
+                logger.info(f'[Checkpoint] Saved new best checkpoint with ROC score: {score:.6f}')
         it += 1
 
 except KeyboardInterrupt:
