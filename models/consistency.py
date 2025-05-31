@@ -82,28 +82,6 @@ class ConsistencyPoint(Module):
         
         # Always get network prediction to maintain gradient flow
         f_theta = network(x, beta=sigma, context=context)
-        
-        # # Implement boundary condition architecturally using smooth blending
-        # # This ensures f(x_raw, ε) = x_raw while maintaining gradients
-        # if isinstance(sigma, torch.Tensor):
-        #     # Create boundary weight: 0 when sigma ≈ 0.002, 1 elsewhere
-        #     # Using smooth transition to avoid discontinuities
-        #     boundary_weight = torch.sigmoid(1000 * (sigma[0] - 0.002)-6)  # Sharp but smooth transition
-        #     boundary_weight = boundary_weight.view(-1, 1, 1)
-            
-        #     # Blend network output with boundary condition
-        #     # When sigma ≈ 0.002: output ≈ x_raw (boundary condition)
-        #     # When sigma >> 0.002: output ≈ f_theta (network prediction)
-        #     output = boundary_weight * f_theta + (1 - boundary_weight) * x_raw
-        # else:
-        #     # Scalar sigma case
-        #     if abs(sigma[0] - 0.002) < 1e-6:
-        #         # At boundary: blend heavily toward x_raw but keep some gradient flow
-        #         output = 0.01 * f_theta + 0.99 * x_raw
-        #     else:
-        #         # Away from boundary: use network prediction
-        #         boundary_weight = 1.0 / (1.0 + math.exp(-1000 * (sigma[0] - 0.002)-6))
-        #         output = boundary_weight * f_theta + (1 - boundary_weight) * x_raw
         output = torch.where(sigma[0] == 0.002, x_raw, f_theta)
 
         return output
@@ -124,8 +102,8 @@ class ConsistencyPoint(Module):
     def _karras_schedule(self, N, eps, T, rho):
         """Generate Karras schedule using the boundary function"""
         return torch.tensor([
-            (eps ** (1 / rho) + (i-1)/ (N - 1) * 
-                (T ** (1 / rho) - eps ** (1 / rho))) ** rho
+            (T ** (1 / rho) + (i)/ (N - 1) * 
+                (eps ** (1 / rho) - T ** (1 / rho))) ** rho
             for i in range(N)
         ], dtype=torch.float32)
 
@@ -169,22 +147,45 @@ class ConsistencyPoint(Module):
         loss = F.mse_loss(prediction, target, reduction="mean")
         return loss
 
-    def sample(self, num_points, context, point_dim=3, flexibility=0.0, ret_traj=False):
-        """Single-step sampling using main network"""
+    # def sample(self, num_points, context, point_dim=3, flexibility=0.0, ret_traj=False):
+    #     """Single-step sampling using main network"""
+    #     batch_size = context.size(0)
+        
+    #     # Start from noise with maximum sigma from Karras schedule
+    #     z = torch.randn([batch_size, num_points, point_dim]).to(context.device)*80.0
+    #     sigma_init = torch.full((batch_size,),80.0, device=context.device)
+    #     x_0 = self.consistency_function(z,sigma_init, context, use_target=False)
+    #     noise_levels=[40.0,20.0,10.0,5.0]
+    #     for t in noise_levels:
+    #         z = torch.randn([batch_size, num_points, point_dim]).to(context.device)
+    #         x_T = x_0 + math.sqrt(t**2 - 0.002**2) * z
+
+    #         sigma_t = torch.full((batch_size,), t, device=context.device)
+    #         x_0 = self.consistency_function(x_T, sigma_t, context, use_target=False)
+        
+    #     if ret_traj:
+    #         return {4000: x_T, 0: x_0}
+    #     else:
+    #         return x_0 
+
+    def sample(self, num_points, context, point_dim=3, flexibility=0.0, ret_traj=False,eps=0.002,T=80.0,rho=7.0,N = 151,ts=[0,67,150]):
+        """Standard multistep consistency sampling following Algorithm 1"""
+    
         batch_size = context.size(0)
-        
-        # Start from noise with maximum sigma from Karras schedule
-        z = torch.randn([batch_size, num_points, point_dim]).to(context.device)*80.0
-        sigma_init = torch.full((batch_size,),80.0, device=context.device)
-        x_0 = self.consistency_function(z,sigma_init, context, use_target=False)
-        noise_levels=[40.0,20.0,10.0,5.0]
-        for t in noise_levels:
-            z = torch.randn([batch_size, num_points, point_dim]).to(context.device)
-            x_T = x_0 + math.sqrt(t**2 - 0.002**2) * z
-            sigma_t = torch.full((batch_size,), t, device=context.device)
-            x_0 = self.consistency_function(x_T, sigma_t, context, use_target=False)
-        
+        x = torch.randn([batch_size, num_points, point_dim]).to(context.device) * T
+        x_copy=x
+        for i in range(len(ts)-1):
+            t= (T ** (1 / rho) + (ts[i])/ (N - 1) * 
+                    (eps ** (1 / rho) - T ** (1 / rho))) ** rho
+            t=torch.full((batch_size,),t, device=context.device)
+            x0=self.consistency_function(x,t,context, use_target=False)
+            t_next= (T ** (1 / rho) + (ts[i+1])/ (N - 1) * 
+                    (eps ** (1 / rho) - T ** (1 / rho))) ** rho
+            t_next =np.clip(t_next,eps,T)
+            # t_next=torch.full((batch_size,),t_next, device=context.device)
+            x = x0 + torch.randn_like(x) * math.sqrt(t_next**2 - eps**2)
         if ret_traj:
-            return {4000: x_T, 0: x_0}
+            return {4000:x_copy,0:x}
         else:
-            return x_0 
+            return x
+
