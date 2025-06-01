@@ -77,9 +77,9 @@ class CheckpointManager(object):
                 latest_it = ckpt['iteration']
         return idx if idx >= 0 else None
 
-    def save(self, model, args, score, others=None, step=None,is_best=False):
+    def save(self, model, args, score, others=None, step=None,is_best=False,iter=0):
 
-        if not is_best:
+        if not is_best and iter!=40000:
             return False
 
         if step is None:
@@ -89,7 +89,8 @@ class CheckpointManager(object):
         else:
             fname = 'ckpt_%.6f_%d.pt' % (float(score), int(step))
         path = os.path.join(self.save_dir, fname)
-        self.delete_old_checkpoints()
+        if iter!=40000:
+            self.delete_old_checkpoints()
 
         torch.save({
             'args': args,

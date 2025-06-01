@@ -23,9 +23,9 @@ class ConsistencyPoint(Module):
         # Official adaptive scheduling parameters (from consistency training paper)
         self.training_step = 1
         self.s0 = 2.0                    # Initial discretization steps
-        self.s1 = 4000.0  # Target discretization steps at end of training
+        self.s1 = 151.0  # Target discretization steps at end of training
         self.mu0 = 0.95                  # EMA decay rate at beginning of model training
-        self.K = 40000                  # Total number of training iterations (default, will be updated)
+        self.K = 100000                  # Total number of training iterations (default, will be updated)
 
     def set_total_training_steps(self, total_steps):
         """Set total training steps K for adaptive scheduling"""
@@ -94,7 +94,8 @@ class ConsistencyPoint(Module):
         c_skip,c_out,c_in=self.get_scalings(sigma)
         # print("c_skip: ",c_skip.shape," c_out: ",c_out.shape," c_in: ",c_in.shape)
         # print("context dim: ",context.shape)
-        f_theta = network(c_in[:, None, None]*x, beta=sigma, context=context)
+        rescaled_t = 1000 * 0.25 * torch.log(sigma + 1e-44)
+        f_theta = network(c_in[:, None, None]*x, beta=rescaled_t, context=context)
         # output = torch.where(sigma[0] == 0.002, x_raw, f_theta)
         output=c_skip[:, None, None]*x_raw+c_out[:, None, None]*f_theta
         return output
@@ -127,6 +128,11 @@ class ConsistencyPoint(Module):
                 f"input has {x.ndim} dims but target_dims is {target_dims}, which is less"
             )
         return x[(...,) + (None,) * dims_to_append]
+    def mean_flat(self,tensor):
+        """
+        Take the mean over all non-batch dimensions.
+        """
+        return tensor.mean(dim=list(range(1, len(tensor.shape))))
     def get_loss(self, x_0, context, t=None, x_raw=None,sigma_max=80.0,sigma_min=0.002,rho=7):
         """Consistency training loss with adaptive Karras scheduling"""
         batch_size, _, point_dim = x_0.size()
@@ -157,7 +163,7 @@ class ConsistencyPoint(Module):
             sigma_min ** (1 / rho) - sigma_max ** (1 / rho)
         )
         t = t**rho
-
+        # print("T shape: ",t.shape)
         t2 = sigma_max ** (1 / rho) + (indices + 1) / (N_k - 1) * (
             sigma_min ** (1 / rho) - sigma_max ** (1 / rho)
         )
@@ -165,11 +171,13 @@ class ConsistencyPoint(Module):
         # print("Indices: ",indices," Steps: ",N_k)
         # Add noise to clean data using Karras sigmas
         noise = torch.randn_like(x_0)
-        x_t = x_0 + noise * self.append_dims(t, batch_size)
-
-        d = (x_t - x_0) / self.append_dims(t, batch_size)
-        x_t2 = x_t + d * self.append_dims(t2 - t, batch_size)
+        # print("x_0 ndim: ",x_0.ndim)
+        x_t = x_0 + noise * self.append_dims(t, x_0.ndim)
+        # print("x_t shape: ",x_t.shape)
+        d = (x_t - x_0) / self.append_dims(t, x_0.ndim)
+        x_t2 = x_t + d * self.append_dims(t2 - t, x_0.ndim)
         x_t2 = x_t2.detach()        
+        # print("x_t2 shape: ",x_t2.shape)
         # print("Timestep for online network is: ",t)
         # print("Timestep for target network is: ",t2)
         # Consistency loss: F_θ(x_t, σ_t) should equal F_θ⁻(x_{t-1}, σ_{t-1})
@@ -178,8 +186,15 @@ class ConsistencyPoint(Module):
             target = self.consistency_function(x_t2, t2, context, use_target=True, x_raw=x_raw)
         # Prediction from main network (with gradients)
         prediction = self.consistency_function(x_t, t, context, use_target=False, x_raw=x_raw)
-        
-        loss = F.mse_loss(prediction, target, reduction="mean")
+        # print("Prediction shape: ",prediction.shape)
+        # print("Target shape: ",target.shape)
+        snrs= t ** -2
+        weightings = snrs + 1.0 / (0.5**2)
+        # loss = F.mse_loss(prediction, target, reduction="mean")
+        diffs = (target - prediction) ** 2
+        # print("Diffs shape: ",diffs.shape)
+        # print("Weightings shape: ",weightings.shape)
+        loss = self.mean_flat(diffs)*weightings 
         return loss
 
     # def sample(self, num_points, context, point_dim=3, flexibility=0.0, ret_traj=False):

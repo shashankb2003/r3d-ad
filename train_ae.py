@@ -28,13 +28,13 @@ parser.add_argument('--adaptive_scheduling', type=eval, default=True,
                     help='Enable adaptive scheduling for consistency models')
 parser.add_argument('--s0', type=float, default=2.0,
                     help='Initial discretization steps for adaptive scheduling')
-parser.add_argument('--s1', type=float, default=4000.0,
+parser.add_argument('--s1', type=float, default=151.0,
                     help='Target discretization steps at end (default: num_steps)')
 parser.add_argument('--mu0', type=float, default=0.95,
                     help='EMA decay rate at beginning of model training')
 
 parser.add_argument('--latent_dim', type=int, default=256)
-parser.add_argument('--num_steps', type=int, default=4000)
+parser.add_argument('--num_steps', type=int, default=151)
 parser.add_argument('--beta_1', type=float, default=1e-4)
 parser.add_argument('--beta_T', type=float, default=0.05)
 parser.add_argument('--sched_mode', type=str, default='linear')
@@ -176,6 +176,24 @@ scheduler = get_linear_scheduler(
 )
 
 memory_bank = []
+def get_second_weights(batch_size, device):
+        """
+        Importance-sample timesteps for a batch.
+
+        :param batch_size: the number of timesteps.
+        :param device: the torch device to save to.
+        :return: a tuple (timesteps, weights):
+                 - timesteps: a tensor of timestep indices.
+                 - weights: a tensor of weights to scale the resulting losses.
+        """
+        w = np.ones([args.num_steps])
+        p = w / np.sum(w)
+        indices_np = np.random.choice(len(p), size=(batch_size,), p=p)
+        indices = torch.from_numpy(indices_np).long().to(device)
+        weights_np = 1 / (len(p) * p[indices_np])
+        weights = torch.from_numpy(weights_np).float().to(device)
+        return indices, weights
+
 # Train, validate 
 def train(it):
     # Load data
@@ -195,7 +213,8 @@ def train(it):
         loss = model.get_loss(x, x_raw)
     else:
         loss = model.get_loss(x)
-
+    _,weights=get_second_weights(args.train_batch_size,args.device)
+    loss=(loss*weights).mean()
     # Backward and optimize
     loss.backward()
     orig_grad_norm = clip_grad_norm_(model.parameters(), args.max_grad_norm)
@@ -302,6 +321,14 @@ try:
                 score = validate_loss(it)
                 validate_inspect(it)
             # Only save if we get a better ROC score
+            if it ==args.max_iters:
+                opt_states = {
+                    'optimizer': optimizer.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                }
+                ckpt_mgr.save(model, args, score, opt_states, it, is_best=True,iter=40000)
+                logger.info(f'[Checkpoint] Saved new checkpoint with ROC score: {score:.6f}')
+
             if score > best_roc:
                 best_roc = score
                 opt_states = {
