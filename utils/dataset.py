@@ -166,7 +166,7 @@ class ShapeNetAD(Dataset):
 
         # Deterministically shuffle the dataset
         self.pointclouds.sort(key=lambda data: data['id'], reverse=False)
-        random.shuffle(self.pointclouds)
+        # random.shuffle(self.pointclouds)
 
     def __len__(self):
         return len(self.pointclouds)
