@@ -143,6 +143,10 @@ else:
         model = ConsistencyAutoEncoder(args).to(args.device)
     else:
         model = getattr(sys.modules[__name__], args.model)(args).to(args.device)
+
+if args.consistency_checkpoint is not None:
+        consistency_model = _load_consistency_model(args.consistency_checkpoint)
+
 logger.info(repr(model))
 
 # Log model-specific information
@@ -210,9 +214,9 @@ def train(it):
     # Forward
     if args.rel:
         x_raw = batch['pointcloud_raw'].to(args.device)
-        loss = model.get_loss(x, x_raw)
+        loss = model.get_loss(x, x_raw,consistency_model)
     else:
-        loss = model.get_loss(x)
+        loss = model.get_loss(x,consistency_model)
     _,weights=get_second_weights(args.train_batch_size,args.device)
     loss=(loss*weights).mean()
     # Backward and optimize
@@ -262,7 +266,7 @@ def validate_loss(it):
         with torch.no_grad():
             model.eval()
             code = model.encode(ref)
-            recons = model.decode(code, ref.size(1), flexibility=args.flexibility)
+            recons = model.decode(code, ref.size(1), flexibility=args.flexibility,consistency_model=consistency_model)
             if args.rel:
                 recons += ref
         
@@ -298,7 +302,7 @@ def validate_inspect(it):
         x = batch['pointcloud'].to(args.device)
         model.eval()
         code = model.encode(x)
-        recons = model.decode(code, x.size(1), flexibility=args.flexibility).detach()
+        recons = model.decode(code, x.size(1), flexibility=args.flexibility,consistency_model=consistency_model).detach()
         if args.rel:
             recons += x
 

@@ -32,12 +32,12 @@ class AutoEncoder(Module):
         code, _ = self.encoder(x)
         return code
 
-    def decode(self, code, num_points, flexibility=0.0, ret_traj=False):
-        return self.diffusion.sample(num_points, code, point_dim=3, flexibility=flexibility, ret_traj=ret_traj)
+    def decode(self, code, num_points, flexibility=0.0, ret_traj=False,consistency_model):
+        return self.diffusion.sample(num_points, code, point_dim=3, flexibility=flexibility, ret_traj=ret_traj,consistency_model=consistency_model)
 
-    def get_loss(self, x, x_raw=None):
+    def get_loss(self, x, x_raw=None,consistency_model):
         code = self.encode(x)
-        loss = self.diffusion.get_loss(x, code, x_raw=x_raw)
+        loss = self.diffusion.get_loss(x, code, x_raw=x_raw,consistency_model=consistency_model)
         return loss
 
 class AutoEncoderTNet(Module):

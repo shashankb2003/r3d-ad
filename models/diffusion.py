@@ -97,7 +97,7 @@ class DiffusionPoint(Module):
         self.net = net
         self.var_sched = var_sched
 
-    def get_loss(self, x_0, context, t=None, x_raw=None):
+    def get_loss(self, x_0, context, t=None, x_raw=None,consistency_model):
         """
         Args:
             x_0:  Input point cloud, (B, N, d).
@@ -111,9 +111,10 @@ class DiffusionPoint(Module):
 
         c0 = torch.sqrt(alpha_bar).view(-1, 1, 1)       # (B, 1, 1)
         c1 = torch.sqrt(1 - alpha_bar).view(-1, 1, 1)   # (B, 1, 1)
+        cm_denoised_x = consistency_model.decode(context, x_0.size(1), flexibility=0.0, ret_traj=False)
 
-        e_rand = torch.randn_like(x_0)  # (B, N, d)
-        e_theta = self.net(c0 * x_0 + c1 * e_rand, beta=beta, context=context)
+        # e_rand = torch.randn_like(x_0)  # (B, N, d)
+        e_theta = self.net(cm_denoised_x, beta=beta, context=context)
 
         if x_raw is not None:
             e_dist = (c0 * x_0 + c1 * e_rand - c1 * e_theta) / c0
@@ -123,12 +124,13 @@ class DiffusionPoint(Module):
             loss = F.mse_loss(e_theta.view(-1, point_dim), e_rand.view(-1, point_dim), reduction='mean')
         return loss
 
-    def sample(self, num_points, context, point_dim=3, flexibility=0.0, ret_traj=False):
+    def sample(self, num_points, context, point_dim=3, flexibility=0.0, ret_traj=False,consistency_model):
+        cm_denoised_x = consistency_model.decode(context, num_points, flexibility=0.0, ret_traj=False)
         batch_size = context.size(0)
-        x_T = torch.randn([batch_size, num_points, point_dim]).to(context.device)
-        traj = {self.var_sched.num_steps: x_T}
+        # x_T = torch.randn([batch_size, num_points, point_dim]).to(context.device)
+        traj = {self.var_sched.num_steps: cm_denoised_x}
         for t in range(self.var_sched.num_steps, 0, -1):
-            z = torch.randn_like(x_T) if t > 1 else torch.zeros_like(x_T)
+            # z = torch.randn_like(cm_denoised_x) if t > 1 else torch.zeros_like(cm_denoised_x)
             alpha = self.var_sched.alphas[t]
             alpha_bar = self.var_sched.alpha_bars[t]
             sigma = self.var_sched.get_sigmas(t, flexibility)
@@ -139,7 +141,7 @@ class DiffusionPoint(Module):
             x_t = traj[t]
             beta = self.var_sched.betas[[t]*batch_size]
             e_theta = self.net(x_t, beta=beta, context=context)
-            x_next = c0 * (x_t - c1 * e_theta) + sigma * z
+            x_next = c0 * (x_t - c1 * e_theta) + sigma * cm_denoised_x
             traj[t-1] = x_next.detach()     # Stop gradient and save trajectory.
             traj[t] = traj[t].cpu()         # Move previous output to CPU memory.
             if not ret_traj:
