@@ -20,7 +20,7 @@ def main(args):
         raise NotImplementedError
     
     for cate in cates:
-        cmd = f"python train_ae.py --category {cate} --log_root logs_{dataset}/{exp_name}_{time_fix}_{args.tag}/" + cfg_cmd
+        cmd = f"python train_ae.py --consistency_checkpoint logs_{dataset}/cm_151/{cate}*/*.pt --category {cate} --log_root logs_{dataset}/{exp_name}_{time_fix}_{args.tag}/" + cfg_cmd
         os.system(cmd)
         
 

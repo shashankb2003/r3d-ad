@@ -97,7 +97,7 @@ class DiffusionPoint(Module):
         self.net = net
         self.var_sched = var_sched
 
-    def get_loss(self, x_0, context, t=None, x_raw=None,consistency_model):
+    def get_loss(self, x_0, context,consistency_model, t=None, x_raw=None):
         """
         Args:
             x_0:  Input point cloud, (B, N, d).
@@ -117,14 +117,14 @@ class DiffusionPoint(Module):
         e_theta = self.net(cm_denoised_x, beta=beta, context=context)
 
         if x_raw is not None:
-            e_dist = (c0 * x_0 + c1 * e_rand - c1 * e_theta) / c0
+            e_dist = (c0 * x_0 + c1 * cm_denoised_x - c1 * e_theta) / c0
             c_raw = x_0 + e_dist
             loss = F.mse_loss(c_raw.view(-1, point_dim), x_raw.view(-1, point_dim), reduction='mean')
         else:
-            loss = F.mse_loss(e_theta.view(-1, point_dim), e_rand.view(-1, point_dim), reduction='mean')
+            loss = F.mse_loss(e_theta.view(-1, point_dim), cm_denoised_x.view(-1, point_dim), reduction='mean')
         return loss
 
-    def sample(self, num_points, context, point_dim=3, flexibility=0.0, ret_traj=False,consistency_model):
+    def sample(self, num_points, context,consistency_model, point_dim=3, flexibility=0.0, ret_traj=False):
         cm_denoised_x = consistency_model.decode(context, num_points, flexibility=0.0, ret_traj=False)
         batch_size = context.size(0)
         # x_T = torch.randn([batch_size, num_points, point_dim]).to(context.device)

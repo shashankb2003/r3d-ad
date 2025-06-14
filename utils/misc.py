@@ -194,13 +194,13 @@ def get_cpu_memory_usage():
     mem_info = process.memory_info()
     return {'rss_mb': mem_info.rss / 1024 / 1024, 'vms_mb': mem_info.vms / 1024 / 1024}
 
-def _load_consistency_model(self, checkpoint_path):
+def load_consistency_model(checkpoint_path):
 
             ckpt = torch.load(checkpoint_path, map_location='cpu',weights_only=False)
             ckpt_args = ckpt['args']
             ckpt_model_type = getattr(ckpt['args'], 'model_type', 'consistency')
             from models.autoencoder import ConsistencyAutoEncoder
-            model = ConsistencyAutoEncoder(ckpt['args']).to(args.device)
+            model = ConsistencyAutoEncoder(ckpt['args']).to('cuda:0')
             model.load_state_dict(ckpt['state_dict'])
             model.eval()
             return model

@@ -1,6 +1,6 @@
 dataset: ShapeNetAD
 dataset_path: data/shapenet-ad/
-model_type: consistency
-max_iters: 100000
-train_batch_size: 16
-val_batch_size: 16
+max_iters: 40000
+train_batch_size: 128
+val_batch_size: 128
+num_steps: 50

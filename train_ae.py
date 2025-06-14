@@ -46,6 +46,7 @@ parser.add_argument('--resume', type=str, default=None)
 parser.add_argument('--dataset', type=str, default='ShapeNetAD')
 parser.add_argument('--dataset_path', type=str, default='./data/shapenet-ad')
 parser.add_argument('--category', type=str, default='ashtray0')
+parser.add_argument('--consistency_checkpoint', type=str)
 parser.add_argument('--scale_mode', type=str, default=None)
 parser.add_argument('--num_points', type=int, default=2048)
 parser.add_argument('--num_aug', type=int, default=2048)
@@ -76,8 +77,7 @@ parser.add_argument('--num_inspect_pointclouds', type=int, default=4)
 args = parser.parse_args()
 
 # Set default s1 to num_steps if not specified
-if args.s1 is None:
-    args.s1 = float(args.num_steps)
+
 
 seed_all(args.seed)
 
@@ -145,7 +145,7 @@ else:
         model = getattr(sys.modules[__name__], args.model)(args).to(args.device)
 
 if args.consistency_checkpoint is not None:
-        consistency_model = _load_consistency_model(args.consistency_checkpoint)
+        consistency_model = load_consistency_model(args.consistency_checkpoint)
 
 logger.info(repr(model))
 
@@ -214,7 +214,7 @@ def train(it):
     # Forward
     if args.rel:
         x_raw = batch['pointcloud_raw'].to(args.device)
-        loss = model.get_loss(x, x_raw,consistency_model)
+        loss = model.get_loss(x,consistency_model,x_raw)
     else:
         loss = model.get_loss(x,consistency_model)
     _,weights=get_second_weights(args.train_batch_size,args.device)
