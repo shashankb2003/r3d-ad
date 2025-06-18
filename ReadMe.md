@@ -18,7 +18,7 @@ Instead of a DDPM, our framework employs a **Consistency Model (CM)**, introduce
 
 We adopt **Consistency Training (CT)** over Consistency Distillation (CD), training the model from scratch using a **target model** and an **online model** in a setup inspired by reinforcement learning. The training objective is:
 <p align="center">
-    <img src="https://latex.codecogs.com/svg.image?\mathcal{L}^{N}_{\text{CD}}(\theta,\theta^{-};\phi):=\mathbb{E}\left[\lambda(t_n)\,d\left(f_{\theta}(\mathbf{x}_{t_{n&plus;1}},t_{n&plus;1}),f_{\theta^{-}}(\hat{\mathbf{x}}^{\phi}_{t_n},t_n)\right)\right]" title="\mathcal{L}^{N}_{\text{CD}}(\theta,\theta^{-};\phi):=\mathbb{E}\left[\lambda(t_n)\,d\left(f_{\theta}(\mathbf{x}_{t_{n+1}},t_{n+1}),f_{\theta^{-}}(\hat{\mathbf{x}}^{\phi}_{t_n},t_n)\right)\right]" />
+    <img src="https://latex.codecogs.com/svg.image?\color{white}\mathcal{L}^{N}_{\text{CD}}(\theta,\theta^{-};\phi):=\mathbb{E}\left[\lambda(t_n)\,d\left(f_{\theta}(\mathbf{x}_{t_{n&plus;1}},t_{n&plus;1}),f_{\theta^{-}}(\hat{\mathbf{x}}^{\phi}_{t_n},t_n)\right)\right]" title="\mathcal{L}^{N}_{\text{CD}}(\theta,\theta^{-};\phi):=\mathbb{E}\left[\lambda(t_n)\,d\left(f_{\theta}(\mathbf{x}_{t_{n+1}},t_{n+1}),f_{\theta^{-}}(\hat{\mathbf{x}}^{\phi}_{t_n},t_n)\right)\right]"/>
 </p>
 
 
