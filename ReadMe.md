@@ -30,12 +30,6 @@ Where:
 
 ---
 
-## Applications
-
-Our primary use-case is **terrain anomaly detection via drone-mounted LiDAR**, where **fast and accurate reconstruction** is essential. The lightweight, single-step sampling ability of CMs makes them highly suitable for **real-time, on-device inference**.
-
----
-
 ## 🔧 Architecture Overview
 
 - **Input**: 3D point cloud with surface anomalies synthesized using Patch-Gen
