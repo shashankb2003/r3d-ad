@@ -23,7 +23,7 @@ class ConsistencyPoint(Module):
         # Official adaptive scheduling parameters (from consistency training paper)
         self.training_step = 1
         self.s0 = 2.0                    # Initial discretization steps
-        self.s1 = 151.0  # Target discretization steps at end of training
+        self.s1 = 151.0                  # Target discretization steps at end of training
         self.mu0 = 0.95                  # EMA decay rate at beginning of model training
         self.K = 100000                  # Total number of training iterations (default, will be updated)
 
