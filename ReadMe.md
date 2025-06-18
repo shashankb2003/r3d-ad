@@ -54,16 +54,16 @@ Our primary use-case is **terrain anomaly detection via drone-mounted LiDAR**, w
 ---
 
 ## Citations
-@article{song2023consistency,
-  title={Consistency Models},
-  author={Song, Yang and Meng, Chenlin and Ermon, Stefano},
-  journal={arXiv preprint arXiv:2303.01469},
-  year={2023}
+@article{song2023consistency,<br/>
+  title={Consistency Models},<br/>
+  author={Song, Yang and Meng, Chenlin and Ermon, Stefano},<br/>
+  journal={arXiv preprint arXiv:2303.01469},<br/>
+  year={2023}<br/>
 }
 
 @inproceedings{cao2023r3dad,
-  title={R3D-AD: Reconstructing 3D Shapes for Unsupervised Anomaly Detection in Point Clouds},
-  author={Cao, Xiyang and Zhang, Ziyang and Liu, Lanqing and Yan, Xiaokang and Yang, Kailun and Zhao, Hengshuang and Geiger, Andreas and Shi, Jianping},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-  year={2023}
+  title={R3D-AD: Reconstructing 3D Shapes for Unsupervised Anomaly Detection in Point Clouds},<br/>
+  author={Cao, Xiyang and Zhang, Ziyang and Liu, Lanqing and Yan, Xiaokang and Yang, Kailun and Zhao<br/> Hengshuang and Geiger, Andreas and Shi, Jianping},<br/>
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},<br/>
+  year={2023}<br/>
 }
