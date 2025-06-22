@@ -42,8 +42,26 @@ Where:
 
 ## Results
 
-> _Sample visualizations of reconstructed vs input point clouds and anomaly maps will be added below._
+<table>
+  <tr>
+    <td align="center">
+      <img src="result_images/original_headset.png" alt="Original Headset PCD" width="300"/>
+      <br/>
+      <em>(a) Input Point Cloud</em>
+    </td>
+    <td align="center">
+      <img src="result_images/recons_headset.png" alt="Reconstructed Headset PCD" width="300"/>
+      <br/>
+      <em>(b) Reconstructed Output</em>
+    </td>
+  </tr>
+</table>
 
+The images above were generated after training the consistency model for 800,000 iterations. Notably, the reconstructions are achieved in just two steps, in contrast to traditional diffusion models which typically require hundreds or even thousands of steps. This dramatic reduction in inference steps significantly improves speed, making the method far more suitable for real-time applications.
+
+While there is a trade-off in reconstruction quality, our experiments suggest that further hyperparameter tuning could narrow this gap, potentially bringing the consistency model's performance closer to that of full diffusion models.
+
+Furthermore, these results were obtained using consistency training alone. Incorporating consistency distillation from a pretrained diffusion model is a promising next step that could yield substantially improved reconstructions.
 
 ---
 
