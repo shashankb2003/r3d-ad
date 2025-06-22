@@ -25,7 +25,7 @@ class ConsistencyPoint(Module):
         self.s0 = 2.0                    # Initial discretization steps
         self.s1 = 151.0                  # Target discretization steps at end of training
         self.mu0 = 0.95                  # EMA decay rate at beginning of model training
-        self.K = 100000                  # Total number of training iterations (default, will be updated)
+        self.K = 800000                  # Total number of training iterations (default, will be updated)
 
     def set_total_training_steps(self, total_steps):
         """Set total training steps K for adaptive scheduling"""

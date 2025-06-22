@@ -42,7 +42,20 @@ Where:
 
 ## Results
 
-> _Sample visualizations of reconstructed vs input point clouds and anomaly maps will be added below._
+<table>
+  <tr>
+    <td align="center">
+      <img src="result_images/original_headset.png" alt="Original Headset PCD" width="300"/>
+      <br/>
+      <em>(a) Input Point Cloud</em>
+    </td>
+    <td align="center">
+      <img src="result_images/recons_headset.png" alt="Reconstructed Headset PCD" width="300"/>
+      <br/>
+      <em>(b) Reconstructed Output</em>
+    </td>
+  </tr>
+</table>
 
 
 ---
