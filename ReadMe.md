@@ -57,7 +57,7 @@ Where:
   </tr>
   <tr>
     <td align="center">
-      <img src="result_images/Ash_OG2.jpg" alt="Original Headset PCD" width="300"/>
+      <img src="result_images/Ash_OG2.jpg" alt="Original Headset PCD" eight="200" width="300"/>
       <br/>
       <em>(a) Input Point Cloud</em>
     </td>
