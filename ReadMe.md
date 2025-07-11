@@ -55,6 +55,18 @@ Where:
       <em>(b) Reconstructed Output</em>
     </td>
   </tr>
+  <tr>
+    <td align="center">
+      <img src="result_images/Ash_0G2.jpg" alt="Original Headset PCD" width="300"/>
+      <br/>
+      <em>(a) Input Point Cloud</em>
+    </td>
+    <td align="center">
+      <img src="result_images/Ash_recon2.jpg" alt="Reconstructed Headset PCD" width="300"/>
+      <br/>
+      <em>(b) Reconstructed Output</em>
+    </td>
+  </tr>
 </table>
 
 The images above were generated after training the consistency model for 800,000 iterations. Notably, the reconstructions are achieved in just two steps, in contrast to traditional diffusion models which typically require hundreds or even thousands of steps. This dramatic reduction in inference steps significantly improves speed, making the method far more suitable for real-time applications.
