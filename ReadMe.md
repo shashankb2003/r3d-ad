@@ -32,6 +32,8 @@ Where:
 
 ## 🔧 Architecture Overview
 
+![Architecture Diagram](/result_images/arch_diagram.jpg)
+
 - **Input**: 3D point cloud with surface anomalies synthesized using Patch-Gen
 - **Encoder**: PointNet/PointNet++ backbone to encode into latent space  
 - **CM**: Consistency Model trained using self-supervised consistency training  
